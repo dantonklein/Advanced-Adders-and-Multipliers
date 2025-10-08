@@ -131,16 +131,16 @@ input logic[WIDTH-1:0] in1, in2,
 output logic[WIDTH-1:0] out,
 output logic cout
 );
-
+localparam int STAGES = $clog2(WIDTH) + 1;
 initial begin
     if (WIDTH < 1) $fatal(1, "ERROR: Width must be larger than 1.");
 end
 
-logic[WIDTH-1:0] G[$clog2(WIDTH) + 1], P[$clog2(WIDTH) + 1];
+logic[WIDTH-1:0] G[STAGES], P[STAGES];
 assign G[0] = in1 & in2;
 assign P[0] = in1 ^ in2;
 
-for(genvar i = 1; i < $clog2(WIDTH) + 1; i++) begin : Main_loop
+for(genvar i = 1; i < STAGES; i++) begin : Main_loop
     for(genvar j = 0; j < (2 ** (i - 1)); j++) begin : Carry_Final_Gs
         assign G[i][j] = G[i-1][j];
         assign P[i][j] = P[i-1][j];
@@ -154,8 +154,8 @@ end
 logic[WIDTH-1:0] carries;
 assign carries[0] = 1'b0;
 if(WIDTH > 1) begin
-    assign carries[WIDTH-1:1] = G[$clog2(WIDTH)][WIDTH-2:0];
+    assign carries[WIDTH-1:1] = G[STAGES - 1][WIDTH-2:0];
 end
-assign cout = G[$clog2(WIDTH)][WIDTH-1:0];
+assign cout = G[STAGES - 1][WIDTH-1];
 assign out = P[0] ^ carries;
 endmodule

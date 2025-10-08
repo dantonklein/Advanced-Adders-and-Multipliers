@@ -2,13 +2,14 @@
 
 module add_tb #(
     parameter int NUM_TESTS = 10000,
-    parameter int WIDTH = 16
+    parameter int WIDTH = 17
 );
     logic [WIDTH-1:0] in1, in2;
     logic [WIDTH-1:0] out;
     logic cout;
     //KSA_8bits DUT (.*);
-    KSA_16bits DUT (.*);
+    //KSA_16bits DUT (.*);
+    KSA_nbits #(.WIDTH(WIDTH)) DUT (.*);
     logic clk = 1'b0;
     initial begin : generate_clock
         forever #5 clk <= ~clk;
