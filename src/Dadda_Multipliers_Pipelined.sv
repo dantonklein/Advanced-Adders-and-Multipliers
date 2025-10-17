@@ -1,214 +1,8 @@
-//I apologize anyone who is reading this I really have no idea how i would parameterize this
-
-module Dadda_Multiplier_8bit (
-    input logic[7:0] in1, in2,
-    output logic[15:0] out
-);
-//partial products
-logic[7:0] pp[7:0];
-
-genvar i,j;
-generate
-    for(i = 0; i < 8; i++) begin
-        for(j = 0; j < 8; j++) begin
-            assign pp[i][j] = in1[j] & in2[i]; 
-        end
-    end
-endgenerate
-//pp positions are known by the ordering of i incrementing and a given column
-//is compromised by all pp where i + j = column position
-
-//for example, column 4 (bit 3) contains pp[0][3] pp[1][2] pp[2][1] pp[3][0]
-
-
-//reduction tree stages
-//stage 0 (height of 8) reduce to height of 6
-
-//column 6
-logic s0_c6_adder0_sum, s0_c6_adder0_carry;
-half_adder s0_c6_adder0(.A(pp[0][6]), .B(pp[1][5]), .sum(s0_c6_adder0_sum), .cout(s0_c6_adder0_carry));
-
-//column 7
-logic s0_c7_adder0_sum, s0_c7_adder0_carry;
-full_adder s0_c7_adder0 (.A(pp[0][7]), .B(pp[1][6]), .cin(pp[2][5]) , .sum(s0_c7_adder0_sum), .cout(s0_c7_adder0_carry));
-
-logic s0_c7_adder1_sum, s0_c7_adder1_carry;
-half_adder s0_c7_adder1 (.A(pp[3][4]), .B(pp[4][3]), .sum(s0_c7_adder1_sum), .cout(s0_c7_adder1_carry));
-
-//column 8
-logic s0_c8_adder0_sum, s0_c8_adder0_carry;
-full_adder s0_c8_adder0 (.A(pp[1][7]), .B(pp[2][6]), .cin(pp[3][5]) , .sum(s0_c8_adder0_sum), .cout(s0_c8_adder0_carry));
-
-logic s0_c8_adder1_sum, s0_c8_adder1_carry;
-half_adder s0_c8_adder1 (.A(pp[4][4]), .B(pp[5][3]), .sum(s0_c8_adder1_sum), .cout(s0_c8_adder1_carry));
-
-//column 9
-logic s0_c9_adder0_sum, s0_c9_adder0_carry;
-full_adder s0_c9_adder0 (.A(pp[2][7]), .B(pp[3][6]), .cin(pp[4][5]) , .sum(s0_c9_adder0_sum), .cout(s0_c9_adder0_carry));
-
-//stage 1 reduce height to 4
-
-//column 4
-logic s1_c4_adder0_sum, s1_c4_adder0_carry;
-half_adder s1_c4_adder0(.A(pp[0][4]), .B(pp[1][3]), .sum(s1_c4_adder0_sum), .cout(s1_c4_adder0_carry));
-
-//column 5
-logic s1_c5_adder0_sum, s1_c5_adder0_carry;
-full_adder s1_c5_adder0 (.A(pp[0][5]), .B(pp[1][4]), .cin(pp[2][3]) , .sum(s1_c5_adder0_sum), .cout(s1_c5_adder0_carry));
-
-logic s1_c5_adder1_sum, s1_c5_adder1_carry;
-half_adder s1_c5_adder1 (.A(pp[3][2]), .B(pp[4][1]), .sum(s1_c5_adder1_sum), .cout(s1_c5_adder1_carry));
-
-//column 6
-logic s1_c6_adder0_sum, s1_c6_adder0_carry;
-full_adder s1_c6_adder0 (.A(s0_c6_adder0_sum), .B(pp[2][4]), .cin(pp[3][3]) , .sum(s1_c6_adder0_sum), .cout(s1_c6_adder0_carry));
-
-logic s1_c6_adder1_sum, s1_c6_adder1_carry;
-full_adder s1_c6_adder1 (.A(pp[4][2]), .B(pp[5][1]), .cin(pp[6][0]) , .sum(s1_c6_adder1_sum), .cout(s1_c6_adder1_carry));
-
-//column 7
-logic s1_c7_adder0_sum, s1_c7_adder0_carry;
-full_adder s1_c7_adder0 (.A(s0_c6_adder0_carry), .B(s0_c7_adder0_sum), .cin(s0_c7_adder1_sum), .sum(s1_c7_adder0_sum), .cout(s1_c7_adder0_carry));
-
-logic s1_c7_adder1_sum, s1_c7_adder1_carry;
-full_adder s1_c7_adder1 (.A(pp[5][2]), .B(pp[6][1]), .cin(pp[7][0]), .sum(s1_c7_adder1_sum), .cout(s1_c7_adder1_carry));
-
-//column 8
-logic s1_c8_adder0_sum, s1_c8_adder0_carry;
-full_adder s1_c8_adder0 (.A(s0_c7_adder0_carry), .B(s0_c7_adder1_carry), .cin(s0_c8_adder0_sum), .sum(s1_c8_adder0_sum), .cout(s1_c8_adder0_carry));
-
-logic s1_c8_adder1_sum, s1_c8_adder1_carry;
-full_adder s1_c8_adder1 (.A(s0_c8_adder1_sum), .B(pp[6][2]), .cin(pp[7][1]), .sum(s1_c8_adder1_sum), .cout(s1_c8_adder1_carry));
-
-//column 9
-logic s1_c9_adder0_sum, s1_c9_adder0_carry;
-full_adder s1_c9_adder0 (.A(s0_c8_adder0_carry), .B(s0_c8_adder1_carry), .cin(s0_c9_adder0_sum), .sum(s1_c9_adder0_sum), .cout(s1_c9_adder0_carry));
-
-logic s1_c9_adder1_sum, s1_c9_adder1_carry;
-full_adder s1_c9_adder1 (.A(pp[5][4]), .B(pp[6][3]), .cin(pp[7][2]), .sum(s1_c9_adder1_sum), .cout(s1_c9_adder1_carry));
-
-//column 10
-logic s1_c10_adder0_sum, s1_c10_adder0_carry;
-full_adder s1_c10_adder0 (.A(s0_c9_adder0_carry), .B(pp[3][7]), .cin(pp[4][6]), .sum(s1_c10_adder0_sum), .cout(s1_c10_adder0_carry));
-
-logic s1_c10_adder1_sum, s1_c10_adder1_carry;
-full_adder s1_c10_adder1 (.A(pp[5][5]), .B(pp[6][4]), .cin(pp[7][3]), .sum(s1_c10_adder1_sum), .cout(s1_c10_adder1_carry));
-
-//column 11
-logic s1_c11_adder0_sum, s1_c11_adder0_carry;
-full_adder s1_c11_adder0 (.A(pp[4][7]), .B(pp[5][6]), .cin(pp[6][5]), .sum(s1_c11_adder0_sum), .cout(s1_c11_adder0_carry));
-
-//stage 2 reduce height to 3
-
-//column 3
-logic s2_c3_adder0_sum, s2_c3_adder0_carry;
-half_adder s2_c3_adder0(.A(pp[0][3]), .B(pp[1][2]), .sum(s2_c3_adder0_sum), .cout(s2_c3_adder0_carry));
-
-//column 4
-logic s2_c4_adder0_sum, s2_c4_adder0_carry;
-full_adder s2_c4_adder0 (.A(s1_c4_adder0_sum), .B(pp[2][2]), .cin(pp[3][1]), .sum(s2_c4_adder0_sum), .cout(s2_c4_adder0_carry));
-
-//column 5
-logic s2_c5_adder0_sum, s2_c5_adder0_carry;
-full_adder s2_c5_adder0 (.A(s1_c4_adder0_carry), .B(s1_c5_adder0_sum), .cin(s1_c5_adder1_sum), .sum(s2_c5_adder0_sum), .cout(s2_c5_adder0_carry));
-
-//column 6
-logic s2_c6_adder0_sum, s2_c6_adder0_carry;
-full_adder s2_c6_adder0 (.A(s1_c5_adder0_carry), .B(s1_c5_adder1_carry), .cin(s1_c6_adder0_sum), .sum(s2_c6_adder0_sum), .cout(s2_c6_adder0_carry));
-
-//column 7
-logic s2_c7_adder0_sum, s2_c7_adder0_carry;
-full_adder s2_c7_adder0 (.A(s1_c6_adder0_carry), .B(s1_c6_adder1_carry), .cin(s1_c7_adder0_sum), .sum(s2_c7_adder0_sum), .cout(s2_c7_adder0_carry));
-
-//column 8
-logic s2_c8_adder0_sum, s2_c8_adder0_carry;
-full_adder s2_c8_adder0 (.A(s1_c7_adder0_carry), .B(s1_c7_adder1_carry), .cin(s1_c8_adder0_sum), .sum(s2_c8_adder0_sum), .cout(s2_c8_adder0_carry));
-
-//column 9
-logic s2_c9_adder0_sum, s2_c9_adder0_carry;
-full_adder s2_c9_adder0 (.A(s1_c8_adder0_carry), .B(s1_c8_adder1_carry), .cin(s1_c9_adder0_sum), .sum(s2_c9_adder0_sum), .cout(s2_c9_adder0_carry));
-
-//column 10
-logic s2_c10_adder0_sum, s2_c10_adder0_carry;
-full_adder s2_c10_adder0 (.A(s1_c9_adder0_carry), .B(s1_c9_adder1_carry), .cin(s1_c10_adder0_sum), .sum(s2_c10_adder0_sum), .cout(s2_c10_adder0_carry));
-
-//column 11
-logic s2_c11_adder0_sum, s2_c11_adder0_carry;
-full_adder s2_c11_adder0 (.A(s1_c10_adder0_carry), .B(s1_c10_adder1_carry), .cin(s1_c11_adder0_sum), .sum(s2_c11_adder0_sum), .cout(s2_c11_adder0_carry));
-
-//column 12
-logic s2_c12_adder0_sum, s2_c12_adder0_carry;
-full_adder s2_c12_adder0 (.A(s1_c11_adder0_carry), .B(pp[5][7]), .cin(pp[6][6]), .sum(s2_c12_adder0_sum), .cout(s2_c12_adder0_carry));
-
-
-//stage 3 reduce height to 2
-
-
-//column 2
-logic s3_c2_adder0_sum, s2_c2_adder0_carry;
-half_adder s3_c2_adder0(.A(pp[0][2]), .B(pp[1][1]), .sum(s3_c2_adder0_sum), .cout(s3_c2_adder0_carry));
-
-//column 3
-logic s3_c3_adder0_sum, s3_c3_adder0_carry;
-full_adder s3_c3_adder0(.A(s2_c3_adder0_sum), .B(pp[2][1]), .cin(pp[3][0]), .sum(s3_c3_adder0_sum), .cout(s3_c3_adder0_carry));
-
-//column 4
-logic s3_c4_adder0_sum, s3_c4_adder0_carry;
-full_adder s3_c4_adder0(.A(s2_c3_adder0_carry), .B(s2_c4_adder0_sum), .cin(pp[4][0]), .sum(s3_c4_adder0_sum), .cout(s3_c4_adder0_carry));
-
-//column 5
-logic s3_c5_adder0_sum, s3_c5_adder0_carry;
-full_adder s3_c5_adder0(.A(s2_c4_adder0_carry), .B(s2_c5_adder0_sum), .cin(pp[5][0]), .sum(s3_c5_adder0_sum), .cout(s3_c5_adder0_carry));
-
-//column 6
-logic s3_c6_adder0_sum, s3_c6_adder0_carry;
-full_adder s3_c6_adder0(.A(s2_c5_adder0_carry), .B(s2_c6_adder0_sum), .cin(s1_c6_adder1_sum), .sum(s3_c6_adder0_sum), .cout(s3_c6_adder0_carry));
-
-//column 7
-logic s3_c7_adder0_sum, s3_c7_adder0_carry;
-full_adder s3_c7_adder0(.A(s2_c6_adder0_carry), .B(s2_c7_adder0_sum), .cin(s1_c7_adder1_sum), .sum(s3_c7_adder0_sum), .cout(s3_c7_adder0_carry));
-
-//column 8
-logic s3_c8_adder0_sum, s3_c8_adder0_carry;
-full_adder s3_c8_adder0(.A(s2_c7_adder0_carry), .B(s2_c8_adder0_sum), .cin(s1_c8_adder1_sum), .sum(s3_c8_adder0_sum), .cout(s3_c8_adder0_carry));
-
-//column 9
-logic s3_c9_adder0_sum, s3_c9_adder0_carry;
-full_adder s3_c9_adder0(.A(s2_c8_adder0_carry), .B(s2_c9_adder0_sum), .cin(s1_c9_adder1_sum), .sum(s3_c9_adder0_sum), .cout(s3_c9_adder0_carry));
-
-//column 10
-logic s3_c10_adder0_sum, s3_c10_adder0_carry;
-full_adder s3_c10_adder0(.A(s2_c9_adder0_carry), .B(s2_c10_adder0_sum), .cin(s1_c10_adder1_sum), .sum(s3_c10_adder0_sum), .cout(s3_c10_adder0_carry));
-
-//column 11
-logic s3_c11_adder0_sum, s3_c11_adder0_carry;
-full_adder s3_c11_adder0(.A(s2_c10_adder0_carry), .B(s2_c11_adder0_sum), .cin(pp[7][4]), .sum(s3_c11_adder0_sum), .cout(s3_c11_adder0_carry));
-
-//column 12
-logic s3_c12_adder0_sum, s3_c12_adder0_carry;
-full_adder s3_c12_adder0(.A(s2_c11_adder0_carry), .B(s2_c12_adder0_sum), .cin(pp[7][5]), .sum(s3_c12_adder0_sum), .cout(s3_c12_adder0_carry));
-
-//column 13
-logic s3_c13_adder0_sum, s3_c13_adder0_carry;
-full_adder s3_c13_adder0(.A(s2_c12_adder0_carry), .B(pp[6][7]), .cin(pp[7][6]), .sum(s3_c13_adder0_sum), .cout(s3_c13_adder0_carry));
-
-logic[13:0] adder_in1, adder_in2;
-assign adder_in1 = {s3_c13_adder0_carry, s3_c12_adder0_carry, s3_c11_adder0_carry, s3_c10_adder0_carry, s3_c9_adder0_carry, s3_c8_adder0_carry, s3_c7_adder0_carry, 
-                    s3_c6_adder0_carry, s3_c5_adder0_carry, s3_c4_adder0_carry, s3_c3_adder0_carry, s3_c2_adder0_carry, s3_c2_adder0_sum, pp[0][1]};
-
-assign adder_in2 = {pp[7][7], s3_c13_adder0_sum, s3_c12_adder0_sum, s3_c11_adder0_sum, s3_c10_adder0_sum, s3_c9_adder0_sum, s3_c8_adder0_sum, 
-                    s3_c7_adder0_sum, s3_c6_adder0_sum, s3_c5_adder0_sum, s3_c4_adder0_sum, s3_c3_adder0_sum, pp[2][0], pp[1][0]};
-
-logic[13:0] adder_sum;
-logic adder_carry;
-KSA_nbits #(.WIDTH(14)) Adder (.in1(adder_in1), .in2(adder_in2), .out(adder_sum), .cout(adder_carry));
-assign out = {adder_carry, adder_sum, pp[0][0]};
-
-endmodule
-
-module Dadda_Multiplier_24bit (
+module Dadda_Multiplier_24bit_pipelined (
+    input logic clk, rst, valid_data_in,
     input logic[23:0] in1, in2,
-    output logic[47:0] out
+    output logic[47:0] out,
+    output logic valid_data_out
 );
 //partial products
 logic[23:0] pp[23:0];
@@ -867,219 +661,532 @@ full_adder s3_c40_adder1(.A(pp[20][20]), .B(pp[21][19]), .cin(pp[22][18]), .sum(
 logic s3_c41_sum, s3_c41_carry;
 full_adder s3_c41_adder0(.A(pp[18][23]), .B(pp[19][22]), .cin(pp[20][21]), .sum(s3_c41_sum), .cout(s3_c41_carry));
 
+
+logic s3_c6_sum_r, s3_c6_carry_r;
+logic s3_c7_sum_r[2], s3_c7_carry_r[2];
+logic s3_c8_sum_r[3], s3_c8_carry_r[3];
+logic s3_c9_sum_r[3], s3_c9_carry_r[3];
+logic s3_c10_sum_r[3], s3_c10_carry_r[3];
+logic s3_c11_sum_r[3], s3_c11_carry_r[3];
+logic s3_c12_sum_r[3], s3_c12_carry_r[3];
+logic s3_c13_sum_r[3], s3_c13_carry_r[3];
+logic s3_c14_sum_r[3], s3_c14_carry_r[3];
+logic s3_c15_sum_r[3], s3_c15_carry_r[3];
+logic s3_c16_sum_r[3], s3_c16_carry_r[3];
+logic s3_c17_sum_r[3], s3_c17_carry_r[3];
+logic s3_c18_sum_r[3], s3_c18_carry_r[3];
+logic s3_c19_sum_r[3], s3_c19_carry_r[3];
+logic s3_c20_sum_r[3], s3_c20_carry_r[3];
+logic s3_c21_sum_r[3], s3_c21_carry_r[3];
+logic s3_c22_sum_r[3], s3_c22_carry_r[3];
+logic s3_c23_sum_r[3], s3_c23_carry_r[3];
+logic s3_c24_sum_r[3], s3_c24_carry_r[3];
+logic s3_c25_sum_r[3], s3_c25_carry_r[3];
+logic s3_c26_sum_r[3], s3_c26_carry_r[3];
+logic s3_c27_sum_r[3], s3_c27_carry_r[3];
+logic s3_c28_sum_r[3], s3_c28_carry_r[3];
+logic s3_c29_sum_r[3], s3_c29_carry_r[3];
+logic s3_c30_sum_r[3], s3_c30_carry_r[3];
+logic s3_c31_sum_r[3], s3_c31_carry_r[3];
+logic s3_c32_sum_r[3], s3_c32_carry_r[3];
+logic s3_c33_sum_r[3], s3_c33_carry_r[3];
+logic s3_c34_sum_r[3], s3_c34_carry_r[3];
+logic s3_c35_sum_r[3], s3_c35_carry_r[3];
+logic s3_c36_sum_r[3], s3_c36_carry_r[3];
+logic s3_c37_sum_r[3], s3_c37_carry_r[3];
+logic s3_c38_sum_r[3], s3_c38_carry_r[3];
+logic s3_c39_sum_r[3], s3_c39_carry_r[3];
+logic s3_c40_sum_r[2], s3_c40_carry_r[2];
+logic s3_c41_sum_r, s3_c41_carry_r;
+logic s3_valid_data_in_r;
+
+logic pp0_4_r, pp1_3_r, pp0_5_r, pp1_4_r, pp2_3_r, pp3_2_r, pp4_1_r;
+logic pp2_4_r, pp3_3_r, pp4_2_r, pp5_1_r, pp6_0_r, pp5_2_r, pp6_1_r;
+logic pp7_0_r, pp8_0_r, pp23_17_r, pp21_20_r, pp22_19_r, pp23_18_r;
+logic pp19_23_r, pp20_22_r, pp21_21_r, pp22_20_r, pp23_19_r, pp20_23_r;
+logic pp21_22_r, pp22_21_r, pp0_3_r, pp1_2_r, pp2_2_r, pp3_1_r, pp5_0_r;
+logic pp23_20_r, pp21_23_r, pp22_22_r, pp0_2_r, pp1_1_r, pp2_1_r, pp3_0_r;
+logic pp4_0_r, pp23_21_r, pp22_23_r, pp23_22_r, pp0_1_r, pp23_23_r, pp2_0_r; 
+logic pp1_0_r, pp0_0_r;
+    always_ff @(posedge clk or posedge rst) begin
+        if(rst) begin
+            s3_c6_sum_r <= 0;
+            s3_c6_carry_r <= 0;
+            s3_c7_sum_r[0] <= 0;
+            s3_c7_carry_r[0] <= 0;
+            s3_c7_sum_r[1] <= 0;
+            s3_c7_carry_r[1] <= 0;
+            for(int i = 0; i < 3; i++) begin
+                s3_c8_sum_r[i] <= 0;
+                s3_c8_carry_r[i] <= 0;
+                s3_c9_sum_r[i] <= 0;
+                s3_c9_carry_r[i] <=0;
+                s3_c10_sum_r[i] <= 0;
+                s3_c10_carry_r[i] <= 0;
+                s3_c11_sum_r[i] <= 0;
+                s3_c11_carry_r[i] <= 0;
+                s3_c12_sum_r[i] <= 0;
+                s3_c12_carry_r[i] <= 0;
+                s3_c13_sum_r[i] <= 0;
+                s3_c13_carry_r[i] <= 0;
+                s3_c14_sum_r[i] <= 0;
+                s3_c14_carry_r[i] <= 0;
+                s3_c15_sum_r[i] <= 0;
+                s3_c15_carry_r[i] <= 0;
+                s3_c16_sum_r[i] <= 0;
+                s3_c16_carry_r[i] <= 0;
+                s3_c17_sum_r[i] <= 0;
+                s3_c17_carry_r[i] <= 0;
+                s3_c18_sum_r[i] <= 0;
+                s3_c18_carry_r[i] <= 0;
+                s3_c19_sum_r[i] <= 0;
+                s3_c19_carry_r[i] <= 0;
+                s3_c20_sum_r[i] <= 0;
+                s3_c20_carry_r[i] <= 0;
+                s3_c21_sum_r[i] <= 0;
+                s3_c21_carry_r[i] <= 0;
+                s3_c22_sum_r[i] <= 0;
+                s3_c22_carry_r[i] <= 0;
+                s3_c23_sum_r[i] <= 0;
+                s3_c23_carry_r[i] <= 0;
+                s3_c24_sum_r[i] <= 0;
+                s3_c24_carry_r[i] <= 0;
+                s3_c25_sum_r[i] <= 0;
+                s3_c25_carry_r[i] <= 0;
+                s3_c26_sum_r[i] <= 0;
+                s3_c26_carry_r[i] <= 0;
+                s3_c27_sum_r[i] <= 0;
+                s3_c27_carry_r[i] <= 0;
+                s3_c28_sum_r[i] <= 0;
+                s3_c28_carry_r[i] <= 0;
+                s3_c29_sum_r[i] <= 0;
+                s3_c29_carry_r[i] <= 0;
+                s3_c30_sum_r[i] <= 0;
+                s3_c30_carry_r[i] <= 0;
+                s3_c31_sum_r[i] <= 0;
+                s3_c31_carry_r[i] <= 0;
+                s3_c32_sum_r[i] <= 0;
+                s3_c32_carry_r[i] <= 0;
+                s3_c33_sum_r[i] <= 0;
+                s3_c33_carry_r[i] <= 0;
+                s3_c34_sum_r[i] <= 0;
+                s3_c34_carry_r[i] <= 0;
+                s3_c35_sum_r[i] <= 0;
+                s3_c35_carry_r[i] <= 0;
+                s3_c36_sum_r[i] <= 0;
+                s3_c36_carry_r[i] <= 0;
+                s3_c37_sum_r[i] <= 0;
+                s3_c37_carry_r[i] <= 0;
+                s3_c38_sum_r[i] <= 0;
+                s3_c38_carry_r[i] <= 0;
+                s3_c39_sum_r[i] <= 0;
+                s3_c39_carry_r[i] <= 0;
+            end
+            s3_c40_sum_r[0] <= 0;
+            s3_c40_carry_r[0] <= 0;
+            s3_c40_sum_r[1] <= 0;
+            s3_c40_carry_r[1] <= 0;
+            s3_c41_sum_r <= 0;
+            s3_c41_carry_r <= 0;
+
+            s3_valid_data_in_r <= 0;
+
+            pp0_4_r <= 0;
+            pp1_3_r <= 0;
+            pp0_5_r <= 0;
+            pp1_4_r <= 0;
+            pp2_3_r <= 0;
+            pp3_2_r <= 0;
+            pp4_1_r <= 0;
+            pp2_4_r <= 0;
+            pp3_3_r <= 0;
+            pp4_2_r <= 0;
+            pp5_1_r <= 0;
+            pp6_0_r <= 0;
+            pp5_2_r <= 0;
+            pp6_1_r <= 0;
+            pp7_0_r <= 0;
+            pp8_0_r <= 0;
+            pp23_17_r <= 0;
+            pp21_20_r <= 0;
+            pp22_19_r <= 0;
+            pp23_18_r <= 0;
+            pp19_23_r <= 0;
+            pp20_22_r <= 0;
+            pp21_21_r <= 0;
+            pp22_20_r <= 0;
+            pp23_19_r <= 0;
+            pp20_23_r <= 0;
+            pp21_22_r <= 0;
+            pp22_21_r <= 0;
+            pp0_3_r <= 0;
+            pp1_2_r <= 0;
+            pp2_2_r <= 0;
+            pp3_1_r <= 0;
+            pp5_0_r <= 0;
+            pp23_20_r <= 0;
+            pp21_23_r <= 0;
+            pp22_22_r <= 0;
+            pp0_2_r <= 0;
+            pp1_1_r <= 0;
+            pp2_1_r <= 0;
+            pp3_0_r <= 0;
+            pp4_0_r <= 0;
+            pp23_21_r <= 0;
+            pp22_23_r <= 0;
+            pp23_22_r <= 0;
+            pp0_1_r <= 0;
+            pp23_23_r <= 0;
+            pp2_0_r <= 0; 
+            pp1_0_r <= 0;
+            pp0_0_r <= 0;
+        end else begin
+            s3_c6_sum_r <= s3_c6_sum;
+            s3_c6_carry_r <= s3_c6_carry;
+            s3_c7_sum_r[0] <= s3_c7_sum[0];
+            s3_c7_carry_r[0] <= s3_c7_carry[0];
+            s3_c7_sum_r[1] <= s3_c7_sum[1];
+            s3_c7_carry_r[1] <= s3_c7_carry[1];
+            for(int i = 0; i < 3; i++) begin
+                s3_c8_sum_r[i] <= s3_c8_sum[i];
+                s3_c8_carry_r[i] <= s3_c8_carry[i];
+                s3_c9_sum_r[i] <= s3_c9_sum[i];
+                s3_c9_carry_r[i] <= s3_c9_carry[i];
+                s3_c10_sum_r[i] <= s3_c10_sum[i];
+                s3_c10_carry_r[i] <= s3_c10_carry[i];
+                s3_c11_sum_r[i] <= s3_c11_sum[i];
+                s3_c11_carry_r[i] <= s3_c11_carry[i];
+                s3_c12_sum_r[i] <= s3_c12_sum[i];
+                s3_c12_carry_r[i] <= s3_c12_carry[i];
+                s3_c13_sum_r[i] <= s3_c13_sum[i];
+                s3_c13_carry_r[i] <= s3_c13_carry[i];
+                s3_c14_sum_r[i] <= s3_c14_sum[i];
+                s3_c14_carry_r[i] <= s3_c14_carry[i];
+                s3_c15_sum_r[i] <= s3_c15_sum[i];
+                s3_c15_carry_r[i] <= s3_c15_carry[i];
+                s3_c16_sum_r[i] <= s3_c16_sum[i];
+                s3_c16_carry_r[i] <= s3_c16_carry[i];
+                s3_c17_sum_r[i] <= s3_c17_sum[i];
+                s3_c17_carry_r[i] <= s3_c17_carry[i];
+                s3_c18_sum_r[i] <= s3_c18_sum[i];
+                s3_c18_carry_r[i] <= s3_c18_carry[i];
+                s3_c19_sum_r[i] <= s3_c19_sum[i];
+                s3_c19_carry_r[i] <= s3_c19_carry[i];
+                s3_c20_sum_r[i] <= s3_c20_sum[i];
+                s3_c20_carry_r[i] <= s3_c20_carry[i];
+                s3_c21_sum_r[i] <= s3_c21_sum[i];
+                s3_c21_carry_r[i] <= s3_c21_carry[i];
+                s3_c22_sum_r[i] <= s3_c22_sum[i];
+                s3_c22_carry_r[i] <= s3_c22_carry[i];
+                s3_c23_sum_r[i] <= s3_c23_sum[i];
+                s3_c23_carry_r[i] <= s3_c23_carry[i];
+                s3_c24_sum_r[i] <= s3_c24_sum[i];
+                s3_c24_carry_r[i] <= s3_c24_carry[i];
+                s3_c25_sum_r[i] <= s3_c25_sum[i];
+                s3_c25_carry_r[i] <= s3_c25_carry[i];
+                s3_c26_sum_r[i] <= s3_c26_sum[i];
+                s3_c26_carry_r[i] <= s3_c26_carry[i];
+                s3_c27_sum_r[i] <= s3_c27_sum[i];
+                s3_c27_carry_r[i] <= s3_c27_carry[i];
+                s3_c28_sum_r[i] <= s3_c28_sum[i];
+                s3_c28_carry_r[i] <= s3_c28_carry[i];
+                s3_c29_sum_r[i] <= s3_c29_sum[i];
+                s3_c29_carry_r[i] <= s3_c29_carry[i];
+                s3_c30_sum_r[i] <= s3_c30_sum[i];
+                s3_c30_carry_r[i] <= s3_c30_carry[i];
+                s3_c31_sum_r[i] <= s3_c31_sum[i];
+                s3_c31_carry_r[i] <= s3_c31_carry[i]; 
+                s3_c32_sum_r[i] <= s3_c32_sum[i];
+                s3_c32_carry_r[i] <= s3_c32_carry[i];
+                s3_c33_sum_r[i] <= s3_c33_sum[i];
+                s3_c33_carry_r[i] <= s3_c33_carry[i];
+                s3_c34_sum_r[i] <= s3_c34_sum[i];
+                s3_c34_carry_r[i] <= s3_c34_carry[i];
+                s3_c35_sum_r[i] <= s3_c35_sum[i];
+                s3_c35_carry_r[i] <= s3_c35_carry[i];
+                s3_c36_sum_r[i] <= s3_c36_sum[i];
+                s3_c36_carry_r[i] <= s3_c36_carry[i];
+                s3_c37_sum_r[i] <= s3_c37_sum[i];
+                s3_c37_carry_r[i] <= s3_c37_carry[i];
+                s3_c38_sum_r[i] <= s3_c38_sum[i];
+                s3_c38_carry_r[i] <= s3_c38_carry[i];
+                s3_c39_sum_r[i] <= s3_c39_sum[i];
+                s3_c39_carry_r[i] <= s3_c39_carry[i];
+            end
+            s3_c40_sum_r[0] <= s3_c40_sum[0];
+            s3_c40_carry_r[0] <= s3_c40_carry[0];
+            s3_c40_sum_r[1] <= s3_c40_sum[1];
+            s3_c40_carry_r[1] <= s3_c40_carry[1];
+            s3_c41_sum_r <= s3_c41_sum;
+            s3_c41_carry_r <= s3_c41_carry;
+
+            s3_valid_data_in_r <= valid_data_in;
+
+            pp0_4_r <= pp[0][4];  
+            pp1_3_r <= pp[1][3];  
+            pp0_5_r <= pp[0][5];  
+            pp1_4_r <= pp[1][4];  
+            pp2_3_r <= pp[2][3];  
+            pp3_2_r <= pp[3][2];  
+            pp4_1_r <= pp[4][1];  
+            pp2_4_r <= pp[2][4];  
+            pp3_3_r <= pp[3][3];  
+            pp4_2_r <= pp[4][2];  
+            pp5_1_r <= pp[5][1];  
+            pp6_0_r <= pp[6][0];  
+            pp5_2_r <= pp[5][2];  
+            pp6_1_r <= pp[6][1];  
+            pp7_0_r <= pp[7][0];  
+            pp8_0_r <= pp[8][0];  
+            pp23_17_r <= pp[23][17];  
+            pp21_20_r <= pp[21][20];  
+            pp22_19_r <= pp[22][19];  
+            pp23_18_r <= pp[23][18];  
+            pp19_23_r <= pp[19][23];  
+            pp20_22_r <= pp[20][22];  
+            pp21_21_r <= pp[21][21];  
+            pp22_20_r <= pp[22][20];  
+            pp23_19_r <= pp[23][19];  
+            pp20_23_r <= pp[20][23];  
+            pp21_22_r <= pp[21][22];  
+            pp22_21_r <= pp[22][21];  
+            pp0_3_r <= pp[0][3];  
+            pp1_2_r <= pp[1][2];  
+            pp2_2_r <= pp[2][2];  
+            pp3_1_r <= pp[3][1];  
+            pp5_0_r <= pp[5][0];  
+            pp23_20_r <= pp[23][20];  
+            pp21_23_r <= pp[21][23];  
+            pp22_22_r <= pp[22][22];  
+            pp0_2_r <= pp[0][2];  
+            pp1_1_r <= pp[1][1];  
+            pp2_1_r <= pp[2][1];  
+            pp3_0_r <= pp[3][0];  
+            pp4_0_r <= pp[4][0];  
+            pp23_21_r <= pp[23][21];  
+            pp22_23_r <= pp[22][23];  
+            pp23_22_r <= pp[23][22];  
+            pp0_1_r <= pp[0][1];  
+            pp23_23_r <= pp[23][23];  
+            pp2_0_r <= pp[2][0];  
+            pp1_0_r <= pp[1][0];  
+            pp0_0_r <= pp[0][0];  
+        end
+    end
+
 //stage 4 reduce height to 4
 
 //column 4
 logic s4_c4_sum, s4_c4_carry;
-half_adder s4_c4_adder0(.A(pp[0][4]), .B(pp[1][3]), .sum(s4_c4_sum), .cout(s4_c4_carry));
+half_adder s4_c4_adder0(.A(pp0_4_r), .B(pp1_3_r), .sum(s4_c4_sum), .cout(s4_c4_carry));
 
 //column 5
 logic s4_c5_sum[2], s4_c5_carry[2];
-half_adder s4_c5_adder0(.A(pp[0][5]), .B(pp[1][4]), .sum(s4_c5_sum[0]), .cout(s4_c5_carry[0]));
-full_adder s4_c5_adder1(.A(pp[2][3]), .B(pp[3][2]), .cin(pp[4][1]), .sum(s4_c5_sum[1]), .cout(s4_c5_carry[1]));
+half_adder s4_c5_adder0(.A(pp0_5_r), .B(pp1_4_r), .sum(s4_c5_sum[0]), .cout(s4_c5_carry[0]));
+full_adder s4_c5_adder1(.A(pp2_3_r), .B(pp3_2_r), .cin(pp4_1_r), .sum(s4_c5_sum[1]), .cout(s4_c5_carry[1]));
 
 //column 6
 logic s4_c6_sum[2], s4_c6_carry[2];
-full_adder s4_c6_adder0(.A(s3_c6_sum), .B(pp[2][4]), .cin(pp[3][3]), .sum(s4_c6_sum[0]), .cout(s4_c6_carry[0]));
-full_adder s4_c6_adder1(.A(pp[4][2]), .B(pp[5][1]), .cin(pp[6][0]), .sum(s4_c6_sum[1]), .cout(s4_c6_carry[1]));
+full_adder s4_c6_adder0(.A(s3_c6_sum_r), .B(pp2_4_r), .cin(pp3_3_r), .sum(s4_c6_sum[0]), .cout(s4_c6_carry[0]));
+full_adder s4_c6_adder1(.A(pp4_2_r), .B(pp5_1_r), .cin(pp6_0_r), .sum(s4_c6_sum[1]), .cout(s4_c6_carry[1]));
 
 //column 7
 logic s4_c7_sum[2], s4_c7_carry[2];
-full_adder s4_c7_adder0(.A(s3_c7_sum[0]), .B(s3_c7_sum[1]), .cin(s3_c6_carry), .sum(s4_c7_sum[0]), .cout(s4_c7_carry[0]));
-full_adder s4_c7_adder1(.A(pp[5][2]), .B(pp[6][1]), .cin(pp[7][0]), .sum(s4_c7_sum[1]), .cout(s4_c7_carry[1]));
+full_adder s4_c7_adder0(.A(s3_c7_sum_r[0]), .B(s3_c7_sum_r[1]), .cin(s3_c6_carry_r), .sum(s4_c7_sum[0]), .cout(s4_c7_carry[0]));
+full_adder s4_c7_adder1(.A(pp5_2_r), .B(pp6_1_r), .cin(pp7_0_r), .sum(s4_c7_sum[1]), .cout(s4_c7_carry[1]));
 
 //column 8
 logic s4_c8_sum[2], s4_c8_carry[2];
-full_adder s4_c8_adder0(.A(s3_c8_sum[0]), .B(s3_c8_sum[1]), .cin(s3_c8_sum[2]), .sum(s4_c8_sum[0]), .cout(s4_c8_carry[0]));
-full_adder s4_c8_adder1(.A(s3_c7_carry[0]), .B(s3_c7_carry[1]), .cin(pp[8][0]), .sum(s4_c8_sum[1]), .cout(s4_c8_carry[1]));
+full_adder s4_c8_adder0(.A(s3_c8_sum_r[0]), .B(s3_c8_sum_r[1]), .cin(s3_c8_sum_r[2]), .sum(s4_c8_sum[0]), .cout(s4_c8_carry[0]));
+full_adder s4_c8_adder1(.A(s3_c7_carry_r[0]), .B(s3_c7_carry_r[1]), .cin(pp8_0_r), .sum(s4_c8_sum[1]), .cout(s4_c8_carry[1]));
 
 //column 9
 logic s4_c9_sum[2], s4_c9_carry[2];
-full_adder s4_c9_adder0(.A(s3_c8_carry[0]), .B(s3_c8_carry[1]), .cin(s3_c8_carry[2]), .sum(s4_c9_sum[0]), .cout(s4_c9_carry[0]));
-full_adder s4_c9_adder1(.A(s3_c9_sum[0]), .B(s3_c9_sum[1]), .cin(s3_c9_sum[2]), .sum(s4_c9_sum[1]), .cout(s4_c9_carry[1]));
+full_adder s4_c9_adder0(.A(s3_c8_carry_r[0]), .B(s3_c8_carry_r[1]), .cin(s3_c8_carry_r[2]), .sum(s4_c9_sum[0]), .cout(s4_c9_carry[0]));
+full_adder s4_c9_adder1(.A(s3_c9_sum_r[0]), .B(s3_c9_sum_r[1]), .cin(s3_c9_sum_r[2]), .sum(s4_c9_sum[1]), .cout(s4_c9_carry[1]));
 
 //column 10
 logic s4_c10_sum[2], s4_c10_carry[2];
-full_adder s4_c10_adder0(.A(s3_c9_carry[0]), .B(s3_c9_carry[1]), .cin(s3_c9_carry[2]), .sum(s4_c10_sum[0]), .cout(s4_c10_carry[0]));
-full_adder s4_c10_adder1(.A(s3_c10_sum[0]), .B(s3_c10_sum[1]), .cin(s3_c10_sum[2]), .sum(s4_c10_sum[1]), .cout(s4_c10_carry[1]));
+full_adder s4_c10_adder0(.A(s3_c9_carry_r[0]), .B(s3_c9_carry_r[1]), .cin(s3_c9_carry_r[2]), .sum(s4_c10_sum[0]), .cout(s4_c10_carry[0]));
+full_adder s4_c10_adder1(.A(s3_c10_sum_r[0]), .B(s3_c10_sum_r[1]), .cin(s3_c10_sum_r[2]), .sum(s4_c10_sum[1]), .cout(s4_c10_carry[1]));
 
 //column 11
 logic s4_c11_sum[2], s4_c11_carry[2];
-full_adder s4_c11_adder0(.A(s3_c10_carry[0]), .B(s3_c10_carry[1]), .cin(s3_c10_carry[2]), .sum(s4_c11_sum[0]), .cout(s4_c11_carry[0]));
-full_adder s4_c11_adder1(.A(s3_c11_sum[0]), .B(s3_c11_sum[1]), .cin(s3_c11_sum[2]), .sum(s4_c11_sum[1]), .cout(s4_c11_carry[1]));
+full_adder s4_c11_adder0(.A(s3_c10_carry_r[0]), .B(s3_c10_carry_r[1]), .cin(s3_c10_carry_r[2]), .sum(s4_c11_sum[0]), .cout(s4_c11_carry[0]));
+full_adder s4_c11_adder1(.A(s3_c11_sum_r[0]), .B(s3_c11_sum_r[1]), .cin(s3_c11_sum_r[2]), .sum(s4_c11_sum[1]), .cout(s4_c11_carry[1]));
 
 //column 12
 logic s4_c12_sum[2], s4_c12_carry[2];
-full_adder s4_c12_adder0(.A(s3_c11_carry[0]), .B(s3_c11_carry[1]), .cin(s3_c11_carry[2]), .sum(s4_c12_sum[0]), .cout(s4_c12_carry[0]));
-full_adder s4_c12_adder1(.A(s3_c12_sum[0]), .B(s3_c12_sum[1]), .cin(s3_c12_sum[2]), .sum(s4_c12_sum[1]), .cout(s4_c12_carry[1]));
+full_adder s4_c12_adder0(.A(s3_c11_carry_r[0]), .B(s3_c11_carry_r[1]), .cin(s3_c11_carry_r[2]), .sum(s4_c12_sum[0]), .cout(s4_c12_carry[0]));
+full_adder s4_c12_adder1(.A(s3_c12_sum_r[0]), .B(s3_c12_sum_r[1]), .cin(s3_c12_sum_r[2]), .sum(s4_c12_sum[1]), .cout(s4_c12_carry[1]));
 
 //column 13
 logic s4_c13_sum[2], s4_c13_carry[2];
-full_adder s4_c13_adder0(.A(s3_c12_carry[0]), .B(s3_c12_carry[1]), .cin(s3_c12_carry[2]), .sum(s4_c13_sum[0]), .cout(s4_c13_carry[0]));
-full_adder s4_c13_adder1(.A(s3_c13_sum[0]), .B(s3_c13_sum[1]), .cin(s3_c13_sum[2]), .sum(s4_c13_sum[1]), .cout(s4_c13_carry[1]));
+full_adder s4_c13_adder0(.A(s3_c12_carry_r[0]), .B(s3_c12_carry_r[1]), .cin(s3_c12_carry_r[2]), .sum(s4_c13_sum[0]), .cout(s4_c13_carry[0]));
+full_adder s4_c13_adder1(.A(s3_c13_sum_r[0]), .B(s3_c13_sum_r[1]), .cin(s3_c13_sum_r[2]), .sum(s4_c13_sum[1]), .cout(s4_c13_carry[1]));
 
 //column 14
 logic s4_c14_sum[2], s4_c14_carry[2];
-full_adder s4_c14_adder0(.A(s3_c13_carry[0]), .B(s3_c13_carry[1]), .cin(s3_c13_carry[2]), .sum(s4_c14_sum[0]), .cout(s4_c14_carry[0]));
-full_adder s4_c14_adder1(.A(s3_c14_sum[0]), .B(s3_c14_sum[1]), .cin(s3_c14_sum[2]), .sum(s4_c14_sum[1]), .cout(s4_c14_carry[1]));
+full_adder s4_c14_adder0(.A(s3_c13_carry_r[0]), .B(s3_c13_carry_r[1]), .cin(s3_c13_carry_r[2]), .sum(s4_c14_sum[0]), .cout(s4_c14_carry[0]));
+full_adder s4_c14_adder1(.A(s3_c14_sum_r[0]), .B(s3_c14_sum_r[1]), .cin(s3_c14_sum_r[2]), .sum(s4_c14_sum[1]), .cout(s4_c14_carry[1]));
 
 //column 15
 logic s4_c15_sum[2], s4_c15_carry[2];
-full_adder s4_c15_adder0(.A(s3_c14_carry[0]), .B(s3_c14_carry[1]), .cin(s3_c14_carry[2]), .sum(s4_c15_sum[0]), .cout(s4_c15_carry[0]));
-full_adder s4_c15_adder1(.A(s3_c15_sum[0]), .B(s3_c15_sum[1]), .cin(s3_c15_sum[2]), .sum(s4_c15_sum[1]), .cout(s4_c15_carry[1]));
+full_adder s4_c15_adder0(.A(s3_c14_carry_r[0]), .B(s3_c14_carry_r[1]), .cin(s3_c14_carry_r[2]), .sum(s4_c15_sum[0]), .cout(s4_c15_carry[0]));
+full_adder s4_c15_adder1(.A(s3_c15_sum_r[0]), .B(s3_c15_sum_r[1]), .cin(s3_c15_sum_r[2]), .sum(s4_c15_sum[1]), .cout(s4_c15_carry[1]));
 
 //column 16
 logic s4_c16_sum[2], s4_c16_carry[2];
-full_adder s4_c16_adder0(.A(s3_c15_carry[0]), .B(s3_c15_carry[1]), .cin(s3_c15_carry[2]), .sum(s4_c16_sum[0]), .cout(s4_c16_carry[0]));
-full_adder s4_c16_adder1(.A(s3_c16_sum[0]), .B(s3_c16_sum[1]), .cin(s3_c16_sum[2]), .sum(s4_c16_sum[1]), .cout(s4_c16_carry[1]));
+full_adder s4_c16_adder0(.A(s3_c15_carry_r[0]), .B(s3_c15_carry_r[1]), .cin(s3_c15_carry_r[2]), .sum(s4_c16_sum[0]), .cout(s4_c16_carry[0]));
+full_adder s4_c16_adder1(.A(s3_c16_sum_r[0]), .B(s3_c16_sum_r[1]), .cin(s3_c16_sum_r[2]), .sum(s4_c16_sum[1]), .cout(s4_c16_carry[1]));
 
 //column 17
 logic s4_c17_sum[2], s4_c17_carry[2];
-full_adder s4_c17_adder0(.A(s3_c16_carry[0]), .B(s3_c16_carry[1]), .cin(s3_c16_carry[2]), .sum(s4_c17_sum[0]), .cout(s4_c17_carry[0]));
-full_adder s4_c17_adder1(.A(s3_c17_sum[0]), .B(s3_c17_sum[1]), .cin(s3_c17_sum[2]), .sum(s4_c17_sum[1]), .cout(s4_c17_carry[1]));
+full_adder s4_c17_adder0(.A(s3_c16_carry_r[0]), .B(s3_c16_carry_r[1]), .cin(s3_c16_carry_r[2]), .sum(s4_c17_sum[0]), .cout(s4_c17_carry[0]));
+full_adder s4_c17_adder1(.A(s3_c17_sum_r[0]), .B(s3_c17_sum_r[1]), .cin(s3_c17_sum_r[2]), .sum(s4_c17_sum[1]), .cout(s4_c17_carry[1]));
 
 //column 18
 logic s4_c18_sum[2], s4_c18_carry[2];
-full_adder s4_c18_adder0(.A(s3_c17_carry[0]), .B(s3_c17_carry[1]), .cin(s3_c17_carry[2]), .sum(s4_c18_sum[0]), .cout(s4_c18_carry[0]));
-full_adder s4_c18_adder1(.A(s3_c18_sum[0]), .B(s3_c18_sum[1]), .cin(s3_c18_sum[2]), .sum(s4_c18_sum[1]), .cout(s4_c18_carry[1]));
+full_adder s4_c18_adder0(.A(s3_c17_carry_r[0]), .B(s3_c17_carry_r[1]), .cin(s3_c17_carry_r[2]), .sum(s4_c18_sum[0]), .cout(s4_c18_carry[0]));
+full_adder s4_c18_adder1(.A(s3_c18_sum_r[0]), .B(s3_c18_sum_r[1]), .cin(s3_c18_sum_r[2]), .sum(s4_c18_sum[1]), .cout(s4_c18_carry[1]));
 
 //column 19
 logic s4_c19_sum[2], s4_c19_carry[2];
-full_adder s4_c19_adder0(.A(s3_c18_carry[0]), .B(s3_c18_carry[1]), .cin(s3_c18_carry[2]), .sum(s4_c19_sum[0]), .cout(s4_c19_carry[0]));
-full_adder s4_c19_adder1(.A(s3_c19_sum[0]), .B(s3_c19_sum[1]), .cin(s3_c19_sum[2]), .sum(s4_c19_sum[1]), .cout(s4_c19_carry[1]));
+full_adder s4_c19_adder0(.A(s3_c18_carry_r[0]), .B(s3_c18_carry_r[1]), .cin(s3_c18_carry_r[2]), .sum(s4_c19_sum[0]), .cout(s4_c19_carry[0]));
+full_adder s4_c19_adder1(.A(s3_c19_sum_r[0]), .B(s3_c19_sum_r[1]), .cin(s3_c19_sum_r[2]), .sum(s4_c19_sum[1]), .cout(s4_c19_carry[1]));
 
 //column 20
 logic s4_c20_sum[2], s4_c20_carry[2];
-full_adder s4_c20_adder0(.A(s3_c19_carry[0]), .B(s3_c19_carry[1]), .cin(s3_c19_carry[2]), .sum(s4_c20_sum[0]), .cout(s4_c20_carry[0]));
-full_adder s4_c20_adder1(.A(s3_c20_sum[0]), .B(s3_c20_sum[1]), .cin(s3_c20_sum[2]), .sum(s4_c20_sum[1]), .cout(s4_c20_carry[1]));
+full_adder s4_c20_adder0(.A(s3_c19_carry_r[0]), .B(s3_c19_carry_r[1]), .cin(s3_c19_carry_r[2]), .sum(s4_c20_sum[0]), .cout(s4_c20_carry[0]));
+full_adder s4_c20_adder1(.A(s3_c20_sum_r[0]), .B(s3_c20_sum_r[1]), .cin(s3_c20_sum_r[2]), .sum(s4_c20_sum[1]), .cout(s4_c20_carry[1]));
 
 //column 21
 logic s4_c21_sum[2], s4_c21_carry[2];
-full_adder s4_c21_adder0(.A(s3_c20_carry[0]), .B(s3_c20_carry[1]), .cin(s3_c20_carry[2]), .sum(s4_c21_sum[0]), .cout(s4_c21_carry[0]));
-full_adder s4_c21_adder1(.A(s3_c21_sum[0]), .B(s3_c21_sum[1]), .cin(s3_c21_sum[2]), .sum(s4_c21_sum[1]), .cout(s4_c21_carry[1]));
+full_adder s4_c21_adder0(.A(s3_c20_carry_r[0]), .B(s3_c20_carry_r[1]), .cin(s3_c20_carry_r[2]), .sum(s4_c21_sum[0]), .cout(s4_c21_carry[0]));
+full_adder s4_c21_adder1(.A(s3_c21_sum_r[0]), .B(s3_c21_sum_r[1]), .cin(s3_c21_sum_r[2]), .sum(s4_c21_sum[1]), .cout(s4_c21_carry[1]));
 
 //column 22
 logic s4_c22_sum[2], s4_c22_carry[2];
-full_adder s4_c22_adder0(.A(s3_c21_carry[0]), .B(s3_c21_carry[1]), .cin(s3_c21_carry[2]), .sum(s4_c22_sum[0]), .cout(s4_c22_carry[0]));
-full_adder s4_c22_adder1(.A(s3_c22_sum[0]), .B(s3_c22_sum[1]), .cin(s3_c22_sum[2]), .sum(s4_c22_sum[1]), .cout(s4_c22_carry[1]));
+full_adder s4_c22_adder0(.A(s3_c21_carry_r[0]), .B(s3_c21_carry_r[1]), .cin(s3_c21_carry_r[2]), .sum(s4_c22_sum[0]), .cout(s4_c22_carry[0]));
+full_adder s4_c22_adder1(.A(s3_c22_sum_r[0]), .B(s3_c22_sum_r[1]), .cin(s3_c22_sum_r[2]), .sum(s4_c22_sum[1]), .cout(s4_c22_carry[1]));
 
 //column 23
 logic s4_c23_sum[2], s4_c23_carry[2];
-full_adder s4_c23_adder0(.A(s3_c22_carry[0]), .B(s3_c22_carry[1]), .cin(s3_c22_carry[2]), .sum(s4_c23_sum[0]), .cout(s4_c23_carry[0]));
-full_adder s4_c23_adder1(.A(s3_c23_sum[0]), .B(s3_c23_sum[1]), .cin(s3_c23_sum[2]), .sum(s4_c23_sum[1]), .cout(s4_c23_carry[1]));
+full_adder s4_c23_adder0(.A(s3_c22_carry_r[0]), .B(s3_c22_carry_r[1]), .cin(s3_c22_carry_r[2]), .sum(s4_c23_sum[0]), .cout(s4_c23_carry[0]));
+full_adder s4_c23_adder1(.A(s3_c23_sum_r[0]), .B(s3_c23_sum_r[1]), .cin(s3_c23_sum_r[2]), .sum(s4_c23_sum[1]), .cout(s4_c23_carry[1]));
 
 //column 24
 logic s4_c24_sum[2], s4_c24_carry[2];
-full_adder s4_c24_adder0(.A(s3_c23_carry[0]), .B(s3_c23_carry[1]), .cin(s3_c23_carry[2]), .sum(s4_c24_sum[0]), .cout(s4_c24_carry[0]));
-full_adder s4_c24_adder1(.A(s3_c24_sum[0]), .B(s3_c24_sum[1]), .cin(s3_c24_sum[2]), .sum(s4_c24_sum[1]), .cout(s4_c24_carry[1]));
+full_adder s4_c24_adder0(.A(s3_c23_carry_r[0]), .B(s3_c23_carry_r[1]), .cin(s3_c23_carry_r[2]), .sum(s4_c24_sum[0]), .cout(s4_c24_carry[0]));
+full_adder s4_c24_adder1(.A(s3_c24_sum_r[0]), .B(s3_c24_sum_r[1]), .cin(s3_c24_sum_r[2]), .sum(s4_c24_sum[1]), .cout(s4_c24_carry[1]));
 
 //column 25
 logic s4_c25_sum[2], s4_c25_carry[2];
-full_adder s4_c25_adder0(.A(s3_c24_carry[0]), .B(s3_c24_carry[1]), .cin(s3_c24_carry[2]), .sum(s4_c25_sum[0]), .cout(s4_c25_carry[0]));
-full_adder s4_c25_adder1(.A(s3_c25_sum[0]), .B(s3_c25_sum[1]), .cin(s3_c25_sum[2]), .sum(s4_c25_sum[1]), .cout(s4_c25_carry[1]));
+full_adder s4_c25_adder0(.A(s3_c24_carry_r[0]), .B(s3_c24_carry_r[1]), .cin(s3_c24_carry_r[2]), .sum(s4_c25_sum[0]), .cout(s4_c25_carry[0]));
+full_adder s4_c25_adder1(.A(s3_c25_sum_r[0]), .B(s3_c25_sum_r[1]), .cin(s3_c25_sum_r[2]), .sum(s4_c25_sum[1]), .cout(s4_c25_carry[1]));
 
 //column 26
 logic s4_c26_sum[2], s4_c26_carry[2];
-full_adder s4_c26_adder0(.A(s3_c25_carry[0]), .B(s3_c25_carry[1]), .cin(s3_c25_carry[2]), .sum(s4_c26_sum[0]), .cout(s4_c26_carry[0]));
-full_adder s4_c26_adder1(.A(s3_c26_sum[0]), .B(s3_c26_sum[1]), .cin(s3_c26_sum[2]), .sum(s4_c26_sum[1]), .cout(s4_c26_carry[1]));
+full_adder s4_c26_adder0(.A(s3_c25_carry_r[0]), .B(s3_c25_carry_r[1]), .cin(s3_c25_carry_r[2]), .sum(s4_c26_sum[0]), .cout(s4_c26_carry[0]));
+full_adder s4_c26_adder1(.A(s3_c26_sum_r[0]), .B(s3_c26_sum_r[1]), .cin(s3_c26_sum_r[2]), .sum(s4_c26_sum[1]), .cout(s4_c26_carry[1]));
 
 //column 27
 logic s4_c27_sum[2], s4_c27_carry[2];
-full_adder s4_c27_adder0(.A(s3_c26_carry[0]), .B(s3_c26_carry[1]), .cin(s3_c26_carry[2]), .sum(s4_c27_sum[0]), .cout(s4_c27_carry[0]));
-full_adder s4_c27_adder1(.A(s3_c27_sum[0]), .B(s3_c27_sum[1]), .cin(s3_c27_sum[2]), .sum(s4_c27_sum[1]), .cout(s4_c27_carry[1]));
+full_adder s4_c27_adder0(.A(s3_c26_carry_r[0]), .B(s3_c26_carry_r[1]), .cin(s3_c26_carry_r[2]), .sum(s4_c27_sum[0]), .cout(s4_c27_carry[0]));
+full_adder s4_c27_adder1(.A(s3_c27_sum_r[0]), .B(s3_c27_sum_r[1]), .cin(s3_c27_sum_r[2]), .sum(s4_c27_sum[1]), .cout(s4_c27_carry[1]));
 
 //column 28
 logic s4_c28_sum[2], s4_c28_carry[2];
-full_adder s4_c28_adder0(.A(s3_c27_carry[0]), .B(s3_c27_carry[1]), .cin(s3_c27_carry[2]), .sum(s4_c28_sum[0]), .cout(s4_c28_carry[0]));
-full_adder s4_c28_adder1(.A(s3_c28_sum[0]), .B(s3_c28_sum[1]), .cin(s3_c28_sum[2]), .sum(s4_c28_sum[1]), .cout(s4_c28_carry[1]));
+full_adder s4_c28_adder0(.A(s3_c27_carry_r[0]), .B(s3_c27_carry_r[1]), .cin(s3_c27_carry_r[2]), .sum(s4_c28_sum[0]), .cout(s4_c28_carry[0]));
+full_adder s4_c28_adder1(.A(s3_c28_sum_r[0]), .B(s3_c28_sum_r[1]), .cin(s3_c28_sum_r[2]), .sum(s4_c28_sum[1]), .cout(s4_c28_carry[1]));
 
 //column 29
 logic s4_c29_sum[2], s4_c29_carry[2];
-full_adder s4_c29_adder0(.A(s3_c28_carry[0]), .B(s3_c28_carry[1]), .cin(s3_c28_carry[2]), .sum(s4_c29_sum[0]), .cout(s4_c29_carry[0]));
-full_adder s4_c29_adder1(.A(s3_c29_sum[0]), .B(s3_c29_sum[1]), .cin(s3_c29_sum[2]), .sum(s4_c29_sum[1]), .cout(s4_c29_carry[1]));
+full_adder s4_c29_adder0(.A(s3_c28_carry_r[0]), .B(s3_c28_carry_r[1]), .cin(s3_c28_carry_r[2]), .sum(s4_c29_sum[0]), .cout(s4_c29_carry[0]));
+full_adder s4_c29_adder1(.A(s3_c29_sum_r[0]), .B(s3_c29_sum_r[1]), .cin(s3_c29_sum_r[2]), .sum(s4_c29_sum[1]), .cout(s4_c29_carry[1]));
 
 //column 30
 logic s4_c30_sum[2], s4_c30_carry[2];
-full_adder s4_c30_adder0(.A(s3_c29_carry[0]), .B(s3_c29_carry[1]), .cin(s3_c29_carry[2]), .sum(s4_c30_sum[0]), .cout(s4_c30_carry[0]));
-full_adder s4_c30_adder1(.A(s3_c30_sum[0]), .B(s3_c30_sum[1]), .cin(s3_c30_sum[2]), .sum(s4_c30_sum[1]), .cout(s4_c30_carry[1]));
+full_adder s4_c30_adder0(.A(s3_c29_carry_r[0]), .B(s3_c29_carry_r[1]), .cin(s3_c29_carry_r[2]), .sum(s4_c30_sum[0]), .cout(s4_c30_carry[0]));
+full_adder s4_c30_adder1(.A(s3_c30_sum_r[0]), .B(s3_c30_sum_r[1]), .cin(s3_c30_sum_r[2]), .sum(s4_c30_sum[1]), .cout(s4_c30_carry[1]));
 
 //column 31
 logic s4_c31_sum[2], s4_c31_carry[2];
-full_adder s4_c31_adder0(.A(s3_c30_carry[0]), .B(s3_c30_carry[1]), .cin(s3_c30_carry[2]), .sum(s4_c31_sum[0]), .cout(s4_c31_carry[0]));
-full_adder s4_c31_adder1(.A(s3_c31_sum[0]), .B(s3_c31_sum[1]), .cin(s3_c31_sum[2]), .sum(s4_c31_sum[1]), .cout(s4_c31_carry[1]));
+full_adder s4_c31_adder0(.A(s3_c30_carry_r[0]), .B(s3_c30_carry_r[1]), .cin(s3_c30_carry_r[2]), .sum(s4_c31_sum[0]), .cout(s4_c31_carry[0]));
+full_adder s4_c31_adder1(.A(s3_c31_sum_r[0]), .B(s3_c31_sum_r[1]), .cin(s3_c31_sum_r[2]), .sum(s4_c31_sum[1]), .cout(s4_c31_carry[1]));
 
 //column 32
 logic s4_c32_sum[2], s4_c32_carry[2];
-full_adder s4_c32_adder0(.A(s3_c31_carry[0]), .B(s3_c31_carry[1]), .cin(s3_c31_carry[2]), .sum(s4_c32_sum[0]), .cout(s4_c32_carry[0]));
-full_adder s4_c32_adder1(.A(s3_c32_sum[0]), .B(s3_c32_sum[1]), .cin(s3_c32_sum[2]), .sum(s4_c32_sum[1]), .cout(s4_c32_carry[1]));
+full_adder s4_c32_adder0(.A(s3_c31_carry_r[0]), .B(s3_c31_carry_r[1]), .cin(s3_c31_carry_r[2]), .sum(s4_c32_sum[0]), .cout(s4_c32_carry[0]));
+full_adder s4_c32_adder1(.A(s3_c32_sum_r[0]), .B(s3_c32_sum_r[1]), .cin(s3_c32_sum_r[2]), .sum(s4_c32_sum[1]), .cout(s4_c32_carry[1]));
 
 //column 33
 logic s4_c33_sum[2], s4_c33_carry[2];
-full_adder s4_c33_adder0(.A(s3_c32_carry[0]), .B(s3_c32_carry[1]), .cin(s3_c32_carry[2]), .sum(s4_c33_sum[0]), .cout(s4_c33_carry[0]));
-full_adder s4_c33_adder1(.A(s3_c33_sum[0]), .B(s3_c33_sum[1]), .cin(s3_c33_sum[2]), .sum(s4_c33_sum[1]), .cout(s4_c33_carry[1]));
+full_adder s4_c33_adder0(.A(s3_c32_carry_r[0]), .B(s3_c32_carry_r[1]), .cin(s3_c32_carry_r[2]), .sum(s4_c33_sum[0]), .cout(s4_c33_carry[0]));
+full_adder s4_c33_adder1(.A(s3_c33_sum_r[0]), .B(s3_c33_sum_r[1]), .cin(s3_c33_sum_r[2]), .sum(s4_c33_sum[1]), .cout(s4_c33_carry[1]));
 
 //column 34
 logic s4_c34_sum[2], s4_c34_carry[2];
-full_adder s4_c34_adder0(.A(s3_c33_carry[0]), .B(s3_c33_carry[1]), .cin(s3_c33_carry[2]), .sum(s4_c34_sum[0]), .cout(s4_c34_carry[0]));
-full_adder s4_c34_adder1(.A(s3_c34_sum[0]), .B(s3_c34_sum[1]), .cin(s3_c34_sum[2]), .sum(s4_c34_sum[1]), .cout(s4_c34_carry[1]));
+full_adder s4_c34_adder0(.A(s3_c33_carry_r[0]), .B(s3_c33_carry_r[1]), .cin(s3_c33_carry_r[2]), .sum(s4_c34_sum[0]), .cout(s4_c34_carry[0]));
+full_adder s4_c34_adder1(.A(s3_c34_sum_r[0]), .B(s3_c34_sum_r[1]), .cin(s3_c34_sum_r[2]), .sum(s4_c34_sum[1]), .cout(s4_c34_carry[1]));
 
 //column 35
 logic s4_c35_sum[2], s4_c35_carry[2];
-full_adder s4_c35_adder0(.A(s3_c34_carry[0]), .B(s3_c34_carry[1]), .cin(s3_c34_carry[2]), .sum(s4_c35_sum[0]), .cout(s4_c35_carry[0]));
-full_adder s4_c35_adder1(.A(s3_c35_sum[0]), .B(s3_c35_sum[1]), .cin(s3_c35_sum[2]), .sum(s4_c35_sum[1]), .cout(s4_c35_carry[1]));
+full_adder s4_c35_adder0(.A(s3_c34_carry_r[0]), .B(s3_c34_carry_r[1]), .cin(s3_c34_carry_r[2]), .sum(s4_c35_sum[0]), .cout(s4_c35_carry[0]));
+full_adder s4_c35_adder1(.A(s3_c35_sum_r[0]), .B(s3_c35_sum_r[1]), .cin(s3_c35_sum_r[2]), .sum(s4_c35_sum[1]), .cout(s4_c35_carry[1]));
 
 //column 36
 logic s4_c36_sum[2], s4_c36_carry[2];
-full_adder s4_c36_adder0(.A(s3_c35_carry[0]), .B(s3_c35_carry[1]), .cin(s3_c35_carry[2]), .sum(s4_c36_sum[0]), .cout(s4_c36_carry[0]));
-full_adder s4_c36_adder1(.A(s3_c36_sum[0]), .B(s3_c36_sum[1]), .cin(s3_c36_sum[2]), .sum(s4_c36_sum[1]), .cout(s4_c36_carry[1]));
+full_adder s4_c36_adder0(.A(s3_c35_carry_r[0]), .B(s3_c35_carry_r[1]), .cin(s3_c35_carry_r[2]), .sum(s4_c36_sum[0]), .cout(s4_c36_carry[0]));
+full_adder s4_c36_adder1(.A(s3_c36_sum_r[0]), .B(s3_c36_sum_r[1]), .cin(s3_c36_sum_r[2]), .sum(s4_c36_sum[1]), .cout(s4_c36_carry[1]));
 
 //column 37
 logic s4_c37_sum[2], s4_c37_carry[2];
-full_adder s4_c37_adder0(.A(s3_c36_carry[0]), .B(s3_c36_carry[1]), .cin(s3_c36_carry[2]), .sum(s4_c37_sum[0]), .cout(s4_c37_carry[0]));
-full_adder s4_c37_adder1(.A(s3_c37_sum[0]), .B(s3_c37_sum[1]), .cin(s3_c37_sum[2]), .sum(s4_c37_sum[1]), .cout(s4_c37_carry[1]));
+full_adder s4_c37_adder0(.A(s3_c36_carry_r[0]), .B(s3_c36_carry_r[1]), .cin(s3_c36_carry_r[2]), .sum(s4_c37_sum[0]), .cout(s4_c37_carry[0]));
+full_adder s4_c37_adder1(.A(s3_c37_sum_r[0]), .B(s3_c37_sum_r[1]), .cin(s3_c37_sum_r[2]), .sum(s4_c37_sum[1]), .cout(s4_c37_carry[1]));
 
 //column 38
 logic s4_c38_sum[2], s4_c38_carry[2];
-full_adder s4_c38_adder0(.A(s3_c37_carry[0]), .B(s3_c37_carry[1]), .cin(s3_c37_carry[2]), .sum(s4_c38_sum[0]), .cout(s4_c38_carry[0]));
-full_adder s4_c38_adder1(.A(s3_c38_sum[0]), .B(s3_c38_sum[1]), .cin(s3_c38_sum[2]), .sum(s4_c38_sum[1]), .cout(s4_c38_carry[1]));
+full_adder s4_c38_adder0(.A(s3_c37_carry_r[0]), .B(s3_c37_carry_r[1]), .cin(s3_c37_carry_r[2]), .sum(s4_c38_sum[0]), .cout(s4_c38_carry[0]));
+full_adder s4_c38_adder1(.A(s3_c38_sum_r[0]), .B(s3_c38_sum_r[1]), .cin(s3_c38_sum_r[2]), .sum(s4_c38_sum[1]), .cout(s4_c38_carry[1]));
 
 //column 39
 logic s4_c39_sum[2], s4_c39_carry[2];
-full_adder s4_c39_adder0(.A(s3_c38_carry[0]), .B(s3_c38_carry[1]), .cin(s3_c38_carry[2]), .sum(s4_c39_sum[0]), .cout(s4_c39_carry[0]));
-full_adder s4_c39_adder1(.A(s3_c39_sum[0]), .B(s3_c39_sum[1]), .cin(s3_c39_sum[2]), .sum(s4_c39_sum[1]), .cout(s4_c39_carry[1]));
+full_adder s4_c39_adder0(.A(s3_c38_carry_r[0]), .B(s3_c38_carry_r[1]), .cin(s3_c38_carry_r[2]), .sum(s4_c39_sum[0]), .cout(s4_c39_carry[0]));
+full_adder s4_c39_adder1(.A(s3_c39_sum_r[0]), .B(s3_c39_sum_r[1]), .cin(s3_c39_sum_r[2]), .sum(s4_c39_sum[1]), .cout(s4_c39_carry[1]));
 
 //column 40
 logic s4_c40_sum[2], s4_c40_carry[2];
-full_adder s4_c40_adder0(.A(s3_c39_carry[0]), .B(s3_c39_carry[1]), .cin(s3_c39_carry[2]), .sum(s4_c40_sum[0]), .cout(s4_c40_carry[0]));
-full_adder s4_c40_adder1(.A(s3_c40_sum[0]), .B(s3_c40_sum[1]), .cin(pp[23][17]), .sum(s4_c40_sum[1]), .cout(s4_c40_carry[1]));
+full_adder s4_c40_adder0(.A(s3_c39_carry_r[0]), .B(s3_c39_carry_r[1]), .cin(s3_c39_carry_r[2]), .sum(s4_c40_sum[0]), .cout(s4_c40_carry[0]));
+full_adder s4_c40_adder1(.A(s3_c40_sum_r[0]), .B(s3_c40_sum_r[1]), .cin(pp23_17_r), .sum(s4_c40_sum[1]), .cout(s4_c40_carry[1]));
 
 //column 41
 logic s4_c41_sum[2], s4_c41_carry[2];
-full_adder s4_c41_adder0(.A(s3_c40_carry[0]), .B(s3_c40_carry[1]), .cin(s3_c41_sum), .sum(s4_c41_sum[0]), .cout(s4_c41_carry[0]));
-full_adder s4_c41_adder1(.A(pp[21][20]), .B(pp[22][19]), .cin(pp[23][18]), .sum(s4_c41_sum[1]), .cout(s4_c41_carry[1]));
+full_adder s4_c41_adder0(.A(s3_c40_carry_r[0]), .B(s3_c40_carry_r[1]), .cin(s3_c41_sum_r), .sum(s4_c41_sum[0]), .cout(s4_c41_carry[0]));
+full_adder s4_c41_adder1(.A(pp21_20_r), .B(pp22_19_r), .cin(pp23_18_r), .sum(s4_c41_sum[1]), .cout(s4_c41_carry[1]));
 
 //column 42
 logic s4_c42_sum[2], s4_c42_carry[2];
-full_adder s4_c42_adder0(.A(s3_c41_carry), .B(pp[19][23]), .cin(pp[20][22]), .sum(s4_c42_sum[0]), .cout(s4_c42_carry[0]));
-full_adder s4_c42_adder1(.A(pp[21][21]), .B(pp[22][20]), .cin(pp[23][19]), .sum(s4_c42_sum[1]), .cout(s4_c42_carry[1]));
+full_adder s4_c42_adder0(.A(s3_c41_carry_r), .B(pp19_23_r), .cin(pp20_22_r), .sum(s4_c42_sum[0]), .cout(s4_c42_carry[0]));
+full_adder s4_c42_adder1(.A(pp21_21_r), .B(pp22_20_r), .cin(pp23_19_r), .sum(s4_c42_sum[1]), .cout(s4_c42_carry[1]));
 
 //column 43
 logic s4_c43_sum, s4_c43_carry;
-full_adder s4_c43_adder0(.A(pp[20][23]), .B(pp[21][22]), .cin(pp[22][21]), .sum(s4_c43_sum), .cout(s4_c43_carry));
+full_adder s4_c43_adder0(.A(pp20_23_r), .B(pp21_22_r), .cin(pp22_21_r), .sum(s4_c43_sum), .cout(s4_c43_carry));
 
 //stage 5 reduce to 3
 
 //column 3
 logic s5_c3_sum, s5_c3_carry;
-half_adder s5_c3_adder0(.A(pp[0][3]), .B(pp[1][2]), .sum(s5_c3_sum), .cout(s5_c3_carry));
+half_adder s5_c3_adder0(.A(pp0_3_r), .B(pp1_2_r), .sum(s5_c3_sum), .cout(s5_c3_carry));
 
 //column 4
 logic s5_c4_sum, s5_c4_carry;
-full_adder s5_c4_adder0(.A(s4_c4_sum), .B(pp[2][2]), .cin(pp[3][1]), .sum(s5_c4_sum), .cout(s5_c4_carry));
+full_adder s5_c4_adder0(.A(s4_c4_sum), .B(pp2_2_r), .cin(pp3_1_r), .sum(s5_c4_sum), .cout(s5_c4_carry));
 
 //column 5
 logic s5_c5_sum, s5_c5_carry;
-full_adder s5_c5_adder0(.A(s4_c5_sum[0]), .B(s4_c5_sum[1]), .cin(pp[5][0]), .sum(s5_c5_sum), .cout(s5_c5_carry));
+full_adder s5_c5_adder0(.A(s4_c5_sum[0]), .B(s4_c5_sum[1]), .cin(pp5_0_r), .sum(s5_c5_sum), .cout(s5_c5_carry));
 
 //column 6
 logic s5_c6_sum, s5_c6_carry;
@@ -1231,25 +1338,25 @@ full_adder s5_c42_adder0(.A(s4_c42_sum[0]), .B(s4_c42_sum[1]), .cin(s4_c41_carry
 
 //column 43
 logic s5_c43_sum, s5_c43_carry;
-full_adder s5_c43_adder0(.A(s4_c43_sum), .B(s4_c42_carry[0]), .cin(pp[23][20]), .sum(s5_c43_sum), .cout(s5_c43_carry));
+full_adder s5_c43_adder0(.A(s4_c43_sum), .B(s4_c42_carry[0]), .cin(pp23_20_r), .sum(s5_c43_sum), .cout(s5_c43_carry));
 
 //column 44
 logic s5_c44_sum, s5_c44_carry;
-full_adder s5_c44_adder0(.A(s4_c43_carry), .B(pp[21][23]), .cin(pp[22][22]), .sum(s5_c44_sum), .cout(s5_c44_carry));
+full_adder s5_c44_adder0(.A(s4_c43_carry), .B(pp21_23_r), .cin(pp22_22_r), .sum(s5_c44_sum), .cout(s5_c44_carry));
 
 //stage 6 reduce to 2
 
 //column 2
 logic s6_c2_sum, s6_c2_carry;
-half_adder s6_c2_adder0(.A(pp[0][2]), .B(pp[1][1]), .sum(s6_c2_sum), .cout(s6_c2_carry));
+half_adder s6_c2_adder0(.A(pp0_2_r), .B(pp1_1_r), .sum(s6_c2_sum), .cout(s6_c2_carry));
 
 //column 3
 logic s6_c3_sum, s6_c3_carry;
-full_adder s6_c3_adder0(.A(pp[2][1]), .B(pp[3][0]), .cin(s5_c3_sum), .sum(s6_c3_sum), .cout(s6_c3_carry));
+full_adder s6_c3_adder0(.A(pp2_1_r), .B(pp3_0_r), .cin(s5_c3_sum), .sum(s6_c3_sum), .cout(s6_c3_carry));
 
 //column 4
 logic s6_c4_sum, s6_c4_carry;
-full_adder s6_c4_adder0(.A(pp[4][0]), .B(s5_c3_carry), .cin(s5_c4_sum), .sum(s6_c4_sum), .cout(s6_c4_carry));
+full_adder s6_c4_adder0(.A(pp4_0_r), .B(s5_c3_carry), .cin(s5_c4_sum), .sum(s6_c4_sum), .cout(s6_c4_carry));
 
 //column 5 
 logic s6_c5_sum, s6_c5_carry;
@@ -1409,11 +1516,11 @@ full_adder s6_c43_adder0(.A(s5_c43_sum), .B(s5_c42_carry), .cin(s4_c42_carry[1])
 
 //column 44
 logic s6_c44_sum, s6_c44_carry;
-full_adder s6_c44_adder0(.A(s5_c44_sum), .B(s5_c43_carry), .cin(pp[23][21]), .sum(s6_c44_sum), .cout(s6_c44_carry));
+full_adder s6_c44_adder0(.A(s5_c44_sum), .B(s5_c43_carry), .cin(pp23_21_r), .sum(s6_c44_sum), .cout(s6_c44_carry));
 
 //column 45
 logic s6_c45_sum, s6_c45_carry;
-full_adder s6_c45_adder0(.A(pp[22][23]), .B(pp[23][22]), .cin(s5_c44_carry), .sum(s6_c45_sum), .cout(s6_c45_carry));
+full_adder s6_c45_adder0(.A(pp22_23_r), .B(pp23_22_r), .cin(s5_c44_carry), .sum(s6_c45_sum), .cout(s6_c45_carry));
 
 logic[45:0] adder_in1, adder_in2;
 
@@ -1423,19 +1530,26 @@ assign adder_in1 = {s6_c45_carry, s6_c44_carry, s6_c43_carry, s6_c42_carry, s6_c
 s6_c39_carry, s6_c38_carry, s6_c37_carry, s6_c36_carry, s6_c35_carry, s6_c34_carry, s6_c33_carry, s6_c32_carry, s6_c31_carry, s6_c30_carry,
 s6_c29_carry, s6_c28_carry, s6_c27_carry, s6_c26_carry, s6_c25_carry, s6_c24_carry, s6_c23_carry, s6_c22_carry, s6_c21_carry, s6_c20_carry,
 s6_c19_carry, s6_c18_carry, s6_c17_carry, s6_c16_carry, s6_c15_carry, s6_c14_carry, s6_c13_carry, s6_c12_carry, s6_c11_carry, s6_c10_carry,
-s6_c9_carry, s6_c8_carry, s6_c7_carry, s6_c6_carry, s6_c5_carry, s6_c4_carry, s6_c3_carry, s6_c2_carry, s6_c2_sum, pp[0][1]};
+s6_c9_carry, s6_c8_carry, s6_c7_carry, s6_c6_carry, s6_c5_carry, s6_c4_carry, s6_c3_carry, s6_c2_carry, s6_c2_sum, pp0_1_r};
 
 
-assign adder_in2 = {pp[23][23], s6_c45_sum, s6_c44_sum, s6_c43_sum, s6_c42_sum, s6_c41_sum, s6_c40_sum,
+assign adder_in2 = {pp23_23_r, s6_c45_sum, s6_c44_sum, s6_c43_sum, s6_c42_sum, s6_c41_sum, s6_c40_sum,
 s6_c39_sum, s6_c38_sum, s6_c37_sum, s6_c36_sum, s6_c35_sum, s6_c34_sum, s6_c33_sum, s6_c32_sum, s6_c31_sum, s6_c30_sum,
 s6_c29_sum, s6_c28_sum, s6_c27_sum, s6_c26_sum, s6_c25_sum, s6_c24_sum, s6_c23_sum, s6_c22_sum, s6_c21_sum, s6_c20_sum,
 s6_c19_sum, s6_c18_sum, s6_c17_sum, s6_c16_sum, s6_c15_sum, s6_c14_sum, s6_c13_sum, s6_c12_sum, s6_c11_sum, s6_c10_sum,
-s6_c9_sum, s6_c8_sum, s6_c7_sum, s6_c6_sum, s6_c5_sum, s6_c4_sum, s6_c3_sum, pp[2][0], pp[1][0]};
+s6_c9_sum, s6_c8_sum, s6_c7_sum, s6_c6_sum, s6_c5_sum, s6_c4_sum, s6_c3_sum, pp2_0_r, pp1_0_r};
 
 
 logic[45:0] adder_sum;
 logic adder_carry;
 KSA_nbits #(.WIDTH(46)) Adder (.in1(adder_in1), .in2(adder_in2), .out(adder_sum), .cout(adder_carry));
-assign out = {adder_carry, adder_sum, pp[0][0]};
-
+always_ff @(posedge clk or posedge rst) begin
+    if(rst) begin
+        out <= '0;
+        valid_data_out <= 0;
+    end else begin
+        out <= {adder_carry, adder_sum, pp0_0_r};
+        valid_data_out <= s3_valid_data_in_r;
+    end
+end
 endmodule
