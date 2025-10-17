@@ -4,14 +4,17 @@ module mult_tb #(
     parameter int NUM_TESTS = 10000
     //parameter int WIDTH = 17
 );
-    logic [7:0] in1, in2;
-    logic [15:0] out;
-    Dadda_Multiplier_8bit  DUT (.*);
+    //logic [7:0] in1, in2;
+    logic [23:0] in1, in2;
+    //logic [15:0] out;
+    logic [47:0] out;
+    //Dadda_Multiplier_8bit  DUT (.*);
+    Dadda_Multiplier_24bit  DUT (.*);
     logic clk = 1'b0;
     initial begin : generate_clock
         forever #5 clk <= ~clk;
     end
-    logic [15:0] correct_out;
+    logic [47:0] correct_out;
     int passed, failed;
 
     initial begin
