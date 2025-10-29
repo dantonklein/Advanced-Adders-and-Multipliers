@@ -1,8 +1,7 @@
 module Dadda_Multiplier_24bit_pipelined (
-    input logic clk, rst, valid_data_in,
+    input logic clk, rst, 
     input logic[23:0] in1, in2,
-    output logic[47:0] out,
-    output logic valid_data_out
+    output logic[47:0] out
 );
 //partial products
 logic[23:0] pp[23:0];
@@ -698,7 +697,6 @@ logic s3_c38_sum_r[3], s3_c38_carry_r[3];
 logic s3_c39_sum_r[3], s3_c39_carry_r[3];
 logic s3_c40_sum_r[2], s3_c40_carry_r[2];
 logic s3_c41_sum_r, s3_c41_carry_r;
-logic s3_valid_data_in_r;
 
 logic pp0_4_r, pp1_3_r, pp0_5_r, pp1_4_r, pp2_3_r, pp3_2_r, pp4_1_r;
 logic pp2_4_r, pp3_3_r, pp4_2_r, pp5_1_r, pp6_0_r, pp5_2_r, pp6_1_r;
@@ -789,7 +787,6 @@ logic pp1_0_r, pp0_0_r;
             s3_c41_sum_r <= 0;
             s3_c41_carry_r <= 0;
 
-            s3_valid_data_in_r <= 0;
 
             pp0_4_r <= 0;
             pp1_3_r <= 0;
@@ -920,7 +917,6 @@ logic pp1_0_r, pp0_0_r;
             s3_c41_sum_r <= s3_c41_sum;
             s3_c41_carry_r <= s3_c41_carry;
 
-            s3_valid_data_in_r <= valid_data_in;
 
             pp0_4_r <= pp[0][4];  
             pp1_3_r <= pp[1][3];  
@@ -1546,10 +1542,8 @@ KSA_nbits #(.WIDTH(46)) Adder (.in1(adder_in1), .in2(adder_in2), .out(adder_sum)
 always_ff @(posedge clk or posedge rst) begin
     if(rst) begin
         out <= '0;
-        valid_data_out <= 0;
     end else begin
         out <= {adder_carry, adder_sum, pp0_0_r};
-        valid_data_out <= s3_valid_data_in_r;
     end
 end
 endmodule
