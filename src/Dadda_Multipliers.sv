@@ -1439,3 +1439,93 @@ KSA_nbits #(.WIDTH(46)) Adder (.in1(adder_in1), .in2(adder_in2), .out(adder_sum)
 assign out = {adder_carry, adder_sum, pp[0][0]};
 
 endmodule
+
+module Dadda_Multiplier_28bit (
+    input logic[27:0] in1, in2,
+    output logic[55:0] out
+);
+//partial products
+logic[27:0] pp[27:0];
+
+genvar i,j;
+generate
+    for(i = 0; i < 28; i++) begin
+        for(j = 0; j < 28; j++) begin
+            assign pp[i][j] = in1[j] & in2[i]; 
+        end
+    end
+endgenerate
+
+
+//reduction tree stages
+//stage 0 (height of 24) reduce to height of 19
+
+//for the sake of making this one smaller than the last one, i am going to be doing some array shenanigans.
+//the sums and carries from the stage 0 additions will go into respective arrays
+//this will hopefully assist in making the following stages more for loopable
+logic s0_s[90];
+logic s0_c[90];
+
+//first genvar loop that covers columns 19-27, which all have 1 half adder with each column having one more full
+//adder than the last
+genvar i, j;
+genvar s_c_index;
+genvar pp_index;
+generate
+    s_c_index = 0;
+    pp_index = 0;
+    for(i = 19; i < 28; i++) begin
+        for(j = 0; j < (i - 18); j++) begin
+            if(j == 0) begin
+                half_adder HA (.A(pp[0][i]), .B(pp[1][i-1]), .sum(s0_s[s_c_index]), .cout(s0_c[s_c_index]));
+                pp_index = 2;
+            end else begin
+                full_adder FA(.A(pp[pp_index][i-pp_index]), .B(pp[pp_index+1][i-(pp_index-1)]), .cin(pp[pp_index+2][i-(pp_index-2)]), .sum(s0_s[s_c_index]), .cout(s0_s[s_c_index]));
+                pp_index = pp_index + 3;
+            end
+            s_c_index++;
+        end
+        pp_index = 0;
+    end
+endgenerate
+
+//column 28 handled on its own, for future stages there will be a middle section loop
+generate
+    s_c_index = uhhhh;
+    pp_index = 0;
+endgenerate
+//second genvar loop that covers columns 29-36, with each column having one less full adder from the last
+
+//stage 1 reduce height to 13
+
+logic s1_s[150];
+logic s1_c[150];
+
+//stage 2 reduce height to 9
+
+logic s2_s[140];
+logic s2_c[140];
+
+//stage 3 reduce height to 6
+
+logic s3_s[126];
+logic s3_c[126];
+
+//stage 4 reduce height to 4
+
+logic s4_s[94];
+logic s4_c[94];
+
+//stage 5 reduce height to 3
+
+logic s5_s[50];
+logic s5_c[50];
+
+//stage 6 reduce height to 2
+
+logic s6_s[52];
+logic s6_c[52];
+
+//stage 7, final addition
+
+endmodule

@@ -1547,3 +1547,5 @@ always_ff @(posedge clk or posedge rst) begin
     end
 end
 endmodule
+
+//make a 28 bit one
