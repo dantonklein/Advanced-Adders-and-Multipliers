@@ -1466,41 +1466,141 @@ endgenerate
 logic s0_s[90];
 logic s0_c[90];
 
-//first genvar loop that covers columns 19-27, which all have 1 half adder with each column having one more full
-//adder than the last
-genvar i, j;
-genvar s_c_index;
-genvar pp_index;
-generate
-    s_c_index = 0;
-    pp_index = 0;
-    for(i = 19; i < 28; i++) begin
-        for(j = 0; j < (i - 18); j++) begin
-            if(j == 0) begin
-                half_adder HA (.A(pp[0][i]), .B(pp[1][i-1]), .sum(s0_s[s_c_index]), .cout(s0_c[s_c_index]));
-                pp_index = 2;
-            end else begin
-                full_adder FA(.A(pp[pp_index][i-pp_index]), .B(pp[pp_index+1][i-(pp_index-1)]), .cin(pp[pp_index+2][i-(pp_index-2)]), .sum(s0_s[s_c_index]), .cout(s0_s[s_c_index]));
-                pp_index = pp_index + 3;
-            end
-            s_c_index++;
+//function to calculate the index for the output sum and carry bits
+function automatic int get_s0_s_c_index(int column, int adder_num)
+    int index = 0;
+    //columns 19-27, increasing triangle
+    if(column >= 19 && column <= 27) begin
+        for(int col = 19; col < column; col++) begin
+            index += (col - 18);
         end
-        pp_index = 0;
+        index += adder_num;
     end
-endgenerate
+    //columns 28
+    else if(column == 28) begin
+        index = 45 + adder_num;
+    end
+    //columns 29-36, decreasing triangle
+    else if(column >= 29 && column <= 36) begin
+        index = 54;
+        for(int col = 29; col < column; col++) begin
+            index += (37 - col);
+        end
+        index += adder_num;
+    end
 
-//column 28 handled on its own, for future stages there will be a middle section loop
+    return index;
+endfunction
+
+//function to determine number of adders per column
+function automatic int s0_num_adders(int column);
+    if (column >= 19 && column <= 27) return (column - 18);
+    else if (column == 28) return 9;
+    else if (column >= 29 && column <= 36) return (37 - column);
+    else return 0;
+endfunction
+
+//function to calculate the pp index
+function automatic int get_s0_pp_index(int column, int adder_num);
+    if (column >= 19 && column <= 28) begin
+        return adder_num * 3 - 1;
+    end else if (column >= 29 && column <= 36) begin
+        return adder_num * 3 + (column - 27); 
+    end
+    return 0;
+endfunction
+
+genvar s0_column, s0_adder_num;
 generate
-    s_c_index = uhhhh;
-    pp_index = 0;
+    for(s0_column = 19; s0_column < 37; s0_column++) begin : columns
+
+        localparam int num_adders = s0_num_adders(s0_column);
+
+        for(s0_adder_num = 0; s0_adder_num < num_adders; s0_adder_num++) begin
+
+            localparam int s0_s_c_index = get_s0_s_c_index(s0_column, s0_adder_num);
+
+            //columns 19-28 start with a half adder
+            if(s0_adder_num == 0 && s0_column <= 28) begin : half_adders
+                if(s0_column == 28) begin
+                    half_adder HA (.A(pp[1][27]), .B(pp[2][26]), .sum(s0_s[s0_s_c_index]), .cout(s0_c[s0_s_c_index]));
+                end
+                else begin
+                    half_adder HA (.A(pp[0][s0_column]), .B(pp[1][s0_column-1]), .sum(s0_s[s0_s_c_index]), .cout(s0_c[s0_s_c_index]));
+                end
+            end else begin : full_adders
+                localparam int s0_pp_index = get_s0_pp_index(s0_column, s0_adder_num);
+                full_adder FA(.A(pp[s0_pp_index][s0_column-s0_pp_index]), .B(pp[s0_pp_index+1][s0_column-(s0_pp_index+1)]), .cin(pp[s0_pp_index+2][s0_column-(s0_pp_index+2)]), .sum(s0_s[s0_s_c_index]), .cout(s0_c[s0_s_c_index]));
+            end
+        end
+    end
+
 endgenerate
-//second genvar loop that covers columns 29-36, with each column having one less full adder from the last
 
 //stage 1 reduce height to 13
 
+//this is the stage where you start depending on the previous adder results.
+//this does not apply for the first triangle
+//columns 13-18
+ 
 logic s1_s[150];
 logic s1_c[150];
 
+//function to calculate the index for the output sum and carry bits
+function automatic int get_s1_s_c_index(int column, int adder_num)
+    int index = 0;
+    //columns 13-18, increasing triangle
+    if(column >= 13 && column <= 18) begin
+        for(int col = 13; col < column; col++) begin
+            index += (col - 12);
+        end
+        index += adder_num;
+    end
+    //columns 19-37
+    else if(column >= 19 && column <= 37) begin
+        index = 21;
+        for(int col = 13; col < column; col++) begin
+            index += (col - 12);
+        end
+        index += adder_num;
+    end
+    //columns 38-42, decreasing triangle
+    else if(column >= 38 && column <= 42) begin
+        index = 114;
+        for(int col = 38; col < column; col++) begin
+            index += (43 - col);
+        end
+        index += adder_num;
+    end
+
+    return index;
+endfunction
+
+
+
+genvar s1_column_c13_c18, s1_adder_num_c13_c18;
+generate
+    for(s1_column_c13_c18 = 13; s1_column_c13_c18 < 19; s1_column_c13_c18++) begin : columns
+
+        localparam int num_adders = s1_column_c13_c18 - 12;
+
+        for(s1_adder_num_c13_c18 = 0; s1_adder_num_c13_c18 < num_adders; s1_adder_num_c13_c18++) begin
+
+            localparam int s1_s_c_index = get_s1s_c_index(s1_column_c13_c18, s1_adder_num_c13_c18);
+
+            //columns 19-28 start with a half adder
+            if(s1_adder_num_c13_c18 == 0 && s1_column_c13_c18 <= 28) begin : half_adders
+                half_adder HA (.A(pp[0][s1_column_c13_c18]), .B(pp[1][s1_column_c13_c18-1]), .sum(s1_s[s1_s_c_index]), .cout(s1_c[s1_s_c_index]));
+            end else begin : full_adders
+                localparam int s1_pp_index;
+                if(s1_adder_num_c13_c18 == 0) s1_pp_index = 0;
+                else s1_pp_index = s1_adder_num_c13_c18 * 3 - 1;
+                full_adder FA(.A(pp[s1_pp_index][s1_column_c13_c18-s1_pp_index]), .B(pp[s1_pp_index+1][s1_column_c13_c18-(s1_pp_index+1)]), .cin(pp[s1_pp_index+2][s1_column_c13_c18-(s1_pp_index+2)]), .sum(s1_s[s1_s_c_index]), .cout(s1_s[s1_s_c_index]));
+            end
+        end
+    end
+
+endgenerate
 //stage 2 reduce height to 9
 
 logic s2_s[140];
